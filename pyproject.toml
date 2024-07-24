@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "code_context_compiler"
+version = "0.1.0"
+description = "A CLI tool to scan a code project and create a single text file with the entire project code."
+authors = ["Chetan Choudhary <chetan.choudhary.office@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+typer = "^0.6.1"
+aiofiles = "^0.8.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0"
+pytest-asyncio = "^0.19.0"
+
+[tool.poetry.scripts]
+code_context_compiler = "code_context_compiler.cli:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
