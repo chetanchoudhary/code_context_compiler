@@ -5,8 +5,8 @@ import typer
 from rich.console import Console
 from rich.progress import Progress
 
-from .config import load_config
-from .scraper import scrape_project
+from code_context_compiler.config import load_config
+from code_context_compiler.scraper import scrape_project
 
 app = typer.Typer()
 console = Console()

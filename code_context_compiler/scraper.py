@@ -11,7 +11,7 @@ import git
 import pathspec
 import yaml
 
-from .masker import mask_sensitive_info
+from code_context_compiler.masker import mask_sensitive_info
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
