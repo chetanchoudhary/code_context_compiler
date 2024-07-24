@@ -24,6 +24,10 @@ DEFAULT_CONFIG = {
         "node_modules",
         "venv",
         ".env",
+        ".jpg",
+        ".png",
+        ".svg",
+        ".mp4",
     ],
     "file_extensions": [],  # Empty list means all file extensions are included
     "mask_patterns": [
