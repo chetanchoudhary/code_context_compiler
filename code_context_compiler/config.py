@@ -4,7 +4,27 @@ from typing import Any, Dict
 import yaml
 
 DEFAULT_CONFIG = {
-    "ignore_patterns": [],
+    "ignore_patterns": [
+        ".git",  # Ignore the entire .git directory
+        ".git/**/*",  # Ignore all contents of .git directory (for thoroughness)
+        "*.log",
+        "*.tmp",
+        "poetry.lock",
+        "package-lock.json",
+        "yarn.lock",
+        "Pipfile.lock",
+        "pnpm-lock.yaml",
+        "composer.lock",
+        "Gemfile.lock",
+        "__pycache__",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".DS_Store",
+        "node_modules",
+        "venv",
+        ".env",
+    ],
     "file_extensions": [],  # Empty list means all file extensions are included
     "mask_patterns": [
         r'password\s*=\s*["\'].*?["\']',

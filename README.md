@@ -36,6 +36,31 @@ Code Context Compiler is designed to be AI-friendly, making it an excellent tool
 
 By using Code Context Compiler to prepare your project data, you can enhance the effectiveness of AI-powered code analysis, documentation generation, code review assistance, and other AI-driven development tools.
 
+## LLM-Friendly Output
+
+Code Context Compiler generates output that is specifically designed to be easily understood by Large Language Models (LLMs). Each compiled output includes:
+
+1. A comprehensive prompt at the beginning of the file, explaining:
+   - The structure of the document
+   - How to interpret file markers
+   - The presence and meaning of masked sensitive information
+   - Guidelines for analyzing the code
+
+2. Clear file demarcation using "File: " prefixes before each file's content.
+
+3. Consistent formatting across all files in the project.
+
+This structure allows LLMs to easily parse and understand the entire project context, making it ideal for tasks such as:
+
+- Code analysis and review
+- Documentation generation
+- Answering questions about the project structure and functionality
+- Identifying patterns and potential improvements across the codebase
+
+When using the JSON or YAML output formats, the LLM prompt is included as a separate field, making it even easier for automated systems to leverage this information.
+
+
+
 ## Installation
 
 ## Using Pip
@@ -101,6 +126,8 @@ You can customize the behavior of Code Context Compiler by creating a YAML confi
 ignore_patterns:
   - "*.log"
   - "*.tmp"
+  - "poetry.lock"
+  - "package-lock.json"
 file_extensions:
   - ".py"
   - ".js"
@@ -111,12 +138,14 @@ mask_patterns:
 use_git: true
 ```
 
-- `ignore_patterns`: List of file patterns to ignore
+- `ignore_patterns`: List of file patterns to ignore. By default, common lock files (like poetry.lock, package-lock.json, yarn.lock, etc.) are ignored.
 - `file_extensions`: List of file extensions to process (if empty, all files are processed)
 - `mask_patterns`: List of regex patterns to mask sensitive information
 - `use_git`: Boolean to only process Git-tracked files
 
 Note: If `file_extensions` is not specified or is an empty list, the tool will process all file types.
+
+The tool comes with sensible defaults, including ignoring common lock files. You can override or extend these defaults in your configuration file.
 
 ## Development
 
