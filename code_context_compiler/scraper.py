@@ -2,6 +2,7 @@ import asyncio
 import fnmatch
 import json
 import logging
+import mimetypes
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict
@@ -11,11 +12,28 @@ import git
 import pathspec
 import yaml
 
+from code_context_compiler.ai_prompt import AI_PROMPT
 from code_context_compiler.masker import mask_sensitive_info
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+# Initialize mimetypes
+mimetypes.init()
+
+
+def setup_logging(debug: bool):
+    """Set up logging based on the debug flag."""
+    log_level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    return logging.getLogger(__name__)
+
+
+def is_media_file(file_path: str) -> bool:
+    """Check if the file is a media file based on its mimetype."""
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if mime_type:
+        return mime_type.startswith(("image/", "video/", "audio/"))
+    return False
 
 
 def load_gitignore(project_path: str) -> pathspec.PathSpec:
@@ -32,6 +50,7 @@ def is_ignored(
     project_path: str,
     gitignore_spec: pathspec.PathSpec,
     ignore_patterns: list,
+    logger: logging.Logger,
 ) -> bool:
     """Check if a file should be ignored based on .gitignore and custom patterns."""
     relative_path = os.path.relpath(file_path, project_path)
@@ -69,23 +88,39 @@ def get_git_tracked_files(project_path: str) -> set:
 
 
 async def process_file(
-    file_path: str, project_path: str, config: Dict[str, Any], out_file
+    file_path: str,
+    project_path: str,
+    config: Dict[str, Any],
+    out_file,
+    logger: logging.Logger,
 ) -> None:
     """Process a single file: read, mask sensitive info, and write to output."""
     relative_path = os.path.relpath(file_path, project_path)
 
-    # If file_extensions is empty, process all files. Otherwise, check the extension.
+    # If file_extensions is not empty, check the extension
     if config["file_extensions"] and not any(
         relative_path.endswith(ext) for ext in config["file_extensions"]
     ):
+        logger.debug(f"Skipping file due to extension: {relative_path}")
         return
 
-    async with aiofiles.open(file_path, "r", errors="ignore") as f:
-        code = await f.read()
-        masked_code = mask_sensitive_info(code, config["mask_patterns"])
-        await out_file.write(f"File: {relative_path}\n")
-        await out_file.write(masked_code)
-        await out_file.write("\n\n")
+    await out_file.write(f"File: {relative_path}\n")
+
+    if is_media_file(file_path):
+        logger.debug(f"Media file detected: {relative_path}")
+        await out_file.write(f"[MEDIA FILE PLACEHOLDER: {relative_path}]\n\n")
+    else:
+        async with aiofiles.open(file_path, "r", errors="ignore") as f:
+            try:
+                code = await f.read()
+                masked_code = mask_sensitive_info(code, config["mask_patterns"])
+                await out_file.write(masked_code)
+                logger.debug(f"Processed file: {relative_path}")
+            except UnicodeDecodeError:
+                logger.warning(f"Unable to decode file as text: {relative_path}")
+                await out_file.write(f"[BINARY FILE PLACEHOLDER: {relative_path}]\n")
+
+    await out_file.write("\n\n")
 
 
 async def scrape_project(
@@ -96,6 +131,12 @@ async def scrape_project(
     progress_callback: Callable[[float], None],
 ) -> None:
     """Scrape the entire project, process files, and write to output."""
+
+    logger = setup_logging(config.get("debug", False))
+
+    logger.info(f"Starting to scrape project: {project_path}")
+    logger.debug(f"Configuration: {config}")
+
     gitignore_spec = load_gitignore(project_path)
     git_tracked_files = (
         get_git_tracked_files(project_path) if config["use_git"] else None
@@ -103,25 +144,7 @@ async def scrape_project(
 
     async with aiofiles.open(output_file, "w") as out_file:
         # Add the LLM prompt at the beginning of the file
-        llm_prompt = """
-This document contains the compiled code of an entire project. The content is organized as follows:
-
-1. Each file's content is preceded by a line starting with "File: " followed by the file path.
-2. The actual content of each file follows immediately after the "File: " line.
-3. There's an empty line between each file's content for better readability.
-4. Some sensitive information may have been masked and replaced with "******".
-
-When analyzing or referring to this code:
-- Pay attention to the file paths to understand the project structure.
-- Treat each "File: " section as a separate file in the project.
-- Be aware that masked information is sensitive and should not be speculated upon.
-- Consider the relationships and dependencies between different files.
-
-Please process this information accordingly and use it to understand the overall structure and content of the project.
-
-The project files and their contents begin below:
-
-"""
+        llm_prompt = AI_PROMPT
         await out_file.write(llm_prompt)
 
         files_to_process = []
@@ -135,13 +158,18 @@ The project files and their contents begin below:
                     project_path,
                     gitignore_spec,
                     config["ignore_patterns"],
+                    logger=logger,
                 )
             ]
 
             for file in files:
                 file_path = os.path.join(root, file)
                 if not is_ignored(
-                    file_path, project_path, gitignore_spec, config["ignore_patterns"]
+                    file_path,
+                    project_path,
+                    gitignore_spec,
+                    config["ignore_patterns"],
+                    logger=logger,
                 ):
                     if (
                         not git_tracked_files
@@ -150,13 +178,16 @@ The project files and their contents begin below:
                         files_to_process.append(file_path)
 
         total_files = len(files_to_process)
+        logger.info(f"Found {total_files} files to process")
 
         for i, file_path in enumerate(files_to_process):
-            await process_file(file_path, project_path, config, out_file)
+            await process_file(file_path, project_path, config, out_file, logger)
             progress_callback((i + 1) / total_files * 100)
 
     if output_format in ["json", "yaml"]:
         convert_output(output_file, output_format)
+
+    logger.info(f"Finished scraping project. Output written to {output_file}")
 
 
 def convert_output(output_file: str, output_format: str) -> None:

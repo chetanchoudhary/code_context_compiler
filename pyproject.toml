@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "code_context_compiler"
-version = "0.1.2"
+version = "0.1.4"
 description = "A CLI tool to scan a code project and create a single file with the entire project code, ideal for feeding context to LLMs."
 authors = ["Chetan Choudhary <chetan.choudhary.office@gmail.com>"]
 license = "MIT"

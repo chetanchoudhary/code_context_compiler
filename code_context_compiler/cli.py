@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 
 import typer
@@ -20,10 +21,16 @@ def main(
     output_format: str = typer.Option(
         "text", help="Output format: text, json, or yaml"
     ),
+    debug: bool = typer.Option(False, help="Enable debug logging"),
 ):
     """
     CLI tool to scan a code project and create a single file with the entire project code.
     """
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     if output_format in ["json", "yaml"]:
         raise NotImplementedError
     try:
